@@ -38,13 +38,28 @@
   // ▲▲▲
 
   var frame = document.getElementById('app'), load = document.getElementById('load'), msg = document.getElementById('msg');
-  if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/.test(APP_URL) && !/^http:\/\/localhost/.test(APP_URL)) {
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/.test(APP_URL) && !/^http:\/\/(localhost|127\.0\.0\.1)/.test(APP_URL)) {
     msg.innerHTML = 'Setup not finished: the app link has not been added to index.html yet.';
   } else {
     frame.onload = function () { setTimeout(function () { load.style.display = 'none'; }, 300); };
     frame.src = APP_URL;
     setTimeout(function () { msg.textContent = 'Still loading… please check your internet connection.'; }, 12000);
   }
+  // Keeps the sign-in (and a few preferences) on THIS page, so browsers that forget what Google's inner frame stores
+  // (Safari especially) still keep people signed in for 30 days. Only the app itself (Google's frames) may ask.
+  var KEYS = { tm_token: 1, tm_login: 1, tm_appname: 1, tm_sched_p: 1, tm_sort: 1, tm_rsort: 1 };
+  function okOrigin(o) { return /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.googleusercontent\.com$/.test(o) || o === 'https://script.google.com'; }
+  function fromOurApp(src) { for (var w = src, i = 0; w && i < 6; i++) { if (w === frame.contentWindow) return true; if (w === w.parent) break; w = w.parent; } return false; }
+  window.addEventListener('message', function (ev) {
+    if (window.top !== window || !okOrigin(ev.origin) || !fromOurApp(ev.source)) return;   // only our own app, never another site
+    var d = ev.data || {};
+    if (d.tm === 'get') {
+      var out = {}; Object.keys(KEYS).forEach(function (k) { try { var v = localStorage.getItem(k); if (v !== null) out[k] = v; } catch (e) {} });
+      try { ev.source.postMessage({ tm: 'store', data: out }, ev.origin); } catch (e) {}
+    } else if (d.tm === 'set' && KEYS[d.k]) {
+      try { if (d.v === null || d.v === undefined) localStorage.removeItem(d.k); else localStorage.setItem(d.k, String(d.v)); } catch (e) {}
+    }
+  });
   function net() { document.getElementById('off').style.display = navigator.onLine ? 'none' : 'block'; }
   window.addEventListener('online', function () { net(); if (load.style.display === 'none') frame.src = APP_URL; });
   window.addEventListener('offline', net); net();
