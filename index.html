@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SR.CE.RSP – Project Management System</title>
+<meta name="description" content="Southern Railway · Chief Engineer · Road Safety Projects – Project Management System">
+<meta name="theme-color" content="#1f5fa8">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SR.CE.RSP">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+  html, body { margin: 0; height: 100%; background: #f4f6f9; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1d2533; }
+  #app { position: fixed; top: env(safe-area-inset-top, 0); left: 0; right: 0; bottom: 0; width: 100%; height: calc(100% - env(safe-area-inset-top, 0px)); border: 0; background: #f4f6f9; }
+  #load { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; padding: 20px; z-index: 2; background: #f4f6f9; }
+  #load img { width: 96px; height: 96px; border-radius: 22px; margin-bottom: 8px; }
+  #load .a { font-weight: 700; font-size: 17px; } #load .b { font-size: 14px; color: #667085; }
+  #load .c { font-size: 13px; color: #667085; margin-top: 14px; }
+  #off { display: none; position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); background: #b42318; color: #fff; padding: 8px 14px; border-radius: 10px; font-size: 14px; z-index: 3; }
+</style>
+</head>
+<body>
+<div id="load">
+  <img src="icon-192.png" alt="">
+  <div class="a">Southern Railway<br>Road Safety Projects</div>
+  <div class="b">Project Management System</div>
+  <div class="c" id="msg">Loading…</div>
+</div>
+<iframe id="app" title="SR.CE.RSP Project Management System" allow="clipboard-write"></iframe>
+<div id="off">No internet connection</div>
+<script>
+  // ▼▼▼ The ONLY line to edit: paste the Google web-app link (it ends in /exec) between the quotes ▼▼▼
+  var APP_URL = 'https://script.google.com/macros/s/AKfycbzaUkZYeusYojB7ZvBxM3BkBza5gYEIYHG6sTkX7K1nRzaIxodHILVwVXATDltvqX2cag/exec';
+  // ▲▲▲
+
+  var frame = document.getElementById('app'), load = document.getElementById('load'), msg = document.getElementById('msg');
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/.test(APP_URL) && !/^http:\/\/localhost/.test(APP_URL)) {
+    msg.innerHTML = 'Setup not finished: the app link has not been added to index.html yet.';
+  } else {
+    frame.onload = function () { setTimeout(function () { load.style.display = 'none'; }, 300); };
+    frame.src = APP_URL;
+    setTimeout(function () { msg.textContent = 'Still loading… please check your internet connection.'; }, 12000);
+  }
+  function net() { document.getElementById('off').style.display = navigator.onLine ? 'none' : 'block'; }
+  window.addEventListener('online', function () { net(); if (load.style.display === 'none') frame.src = APP_URL; });
+  window.addEventListener('offline', net); net();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+</script>
+</body>
+</html>
