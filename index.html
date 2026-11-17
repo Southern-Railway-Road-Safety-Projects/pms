@@ -47,7 +47,7 @@
   }
   // Keeps the sign-in (and a few preferences) on THIS page, so browsers that forget what Google's inner frame stores
   // (Safari especially) still keep people signed in for 30 days. Only the app itself (Google's frames) may ask.
-  var KEYS = { tm_token: 1, tm_login: 1, tm_appname: 1, tm_sched_p: 1, tm_sort: 1, tm_rsort: 1 };
+  var KEYS = { tm_token: 1, tm_login: 1, tm_appname: 1, tm_sched_p: 1, tm_sort: 1, tm_rsort: 1, tm_folds: 1, tm_tcols: 1, tm_cache: 1, tm_fin_unit: 1, tm_paper: 1 };
   function okOrigin(o) { return /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.googleusercontent\.com$/.test(o) || o === 'https://script.google.com'; }
   function fromOurApp(src) { for (var w = src, i = 0; w && i < 6; i++) { if (w === frame.contentWindow) return true; if (w === w.parent) break; w = w.parent; } return false; }
   window.addEventListener('message', function (ev) {
