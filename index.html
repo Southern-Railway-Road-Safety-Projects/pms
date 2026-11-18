@@ -56,6 +56,8 @@
     if (d.tm === 'get') {
       var out = {}; Object.keys(KEYS).forEach(function (k) { try { var v = localStorage.getItem(k); if (v !== null) out[k] = v; } catch (e) {} });
       try { ev.source.postMessage({ tm: 'store', data: out }, ev.origin); } catch (e) {}
+    } else if (d.tm === 'reload') {
+      location.reload();   // "Update now": load the new version here, without leaving this page
     } else if (d.tm === 'set' && KEYS[d.k]) {
       try { if (d.v === null || d.v === undefined) localStorage.removeItem(d.k); else localStorage.setItem(d.k, String(d.v)); } catch (e) {}
     }
@@ -63,6 +65,8 @@
   function net() { document.getElementById('off').style.display = navigator.onLine ? 'none' : 'block'; }
   window.addEventListener('online', function () { net(); if (load.style.display === 'none') frame.src = APP_URL; });
   window.addEventListener('offline', net); net();
+  // Coming back to this page from the browser's memory (e.g. the ✕ of an outside page): load the app afresh
+  window.addEventListener('pageshow', function (e) { if (e.persisted) location.reload(); });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
 </script>
 </body>
