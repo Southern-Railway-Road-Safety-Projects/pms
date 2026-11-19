@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🎤 Voice typing – SR.CE.RSP</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:#eef2f7;color:#1d2533}
+  .top{background:linear-gradient(90deg,#14233b,#2a5694);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:8px}
+  .top b{font-size:15px}.top span{color:#c9daf1;font-size:13px}
+  main{padding:12px 14px}
+  .langs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px}
+  .langs button{border:1px solid #cfd8e5;background:#fff;border-radius:12px;padding:3px 9px;font-size:13px;cursor:pointer}
+  .langs button.on{background:#2a5694;border-color:#2a5694;color:#fff}
+  .mic{display:block;margin:4px auto 6px;width:74px;height:74px;border-radius:50%;border:0;background:#2a5694;color:#fff;font-size:32px;cursor:pointer;box-shadow:0 4px 14px rgba(42,86,148,.35)}
+  .mic.on{background:#c0262d;animation:p 1.2s infinite}
+  @keyframes p{0%,100%{box-shadow:0 0 0 0 rgba(192,38,45,.5)}50%{box-shadow:0 0 0 14px rgba(192,38,45,0)}}
+  #st{text-align:center;font-size:13px;color:#5f6b80;min-height:20px}
+  #st.err{color:#c0262d}
+  #heard{font-style:italic;color:#4a5568;min-height:20px;font-size:13px;text-align:center}
+  textarea{width:100%;height:110px;border:1px solid #cfd8e5;border-radius:10px;padding:8px 10px;font:inherit;resize:vertical;margin-top:6px}
+  .row{display:flex;gap:8px;margin-top:10px;align-items:center}
+  .row button{border-radius:10px;padding:8px 16px;font:inherit;cursor:pointer;border:1px solid #cfd8e5;background:#fff}
+  .row .primary{background:#2a5694;color:#fff;border-color:#2a5694;font-weight:600}
+  .hint{font-size:12px;color:#7a8597;margin-top:8px}
+  kbd{border:1px solid #cfd8e5;border-bottom-width:2px;border-radius:5px;padding:0 5px;background:#fff;font-family:inherit;font-weight:600}
+</style>
+</head>
+<body>
+<div class="top">🎤 <b>Voice typing</b> <span id="for"></span></div>
+<main>
+  <div class="langs" id="langs"></div>
+  <button class="mic" id="mic" title="Start / stop listening">🎤</button>
+  <div id="st">Starting…</div>
+  <div id="heard"></div>
+  <textarea id="txt" placeholder="Your words appear here. You can correct them before inserting."></textarea>
+  <div class="row"><button class="primary" id="ins">Insert</button><button id="cl">Cancel</button></div>
+  <div class="hint" id="hint"></div>
+</main>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search), lang = q.get('lang') || 'en-IN', key = q.get('key') || '';
+  var R = window.SpeechRecognition || window.webkitSpeechRecognition, rec = null, on = false, sent = false;
+  var LANGS = [['en-IN', 'English'], ['ta-IN', 'தமிழ்'], ['hi-IN', 'हिन्दी'], ['te-IN', 'తెలుగు'], ['ml-IN', 'മലയാളം'], ['kn-IN', 'ಕನ್ನಡ']];
+  var $ = function (id) { return document.getElementById(id); };
+  if (q.get('for')) $('for').textContent = '→ ' + q.get('for');
+  $('hint').innerHTML = 'Correct the words if needed, then <b>Insert</b>.' + (key ? ' <kbd>' + key.replace(/</g, '') + '</kbd> inserts and closes.' : '') + ' <kbd>Esc</kbd> cancels.';
+  function drawLangs() { $('langs').innerHTML = LANGS.map(function (l) { return '<button data-l="' + l[0] + '"' + (l[0] === lang ? ' class="on"' : '') + '>' + l[1] + '</button>'; }).join(''); }
+  drawLangs();
+  $('langs').onclick = function (e) { var b = e.target.closest('[data-l]'); if (!b) return; lang = b.getAttribute('data-l'); drawLangs(); if (on) { stop(); setTimeout(start, 250); } };
+  function status(t, bad) { $('st').textContent = t; $('st').className = bad ? 'err' : ''; }
+  function ui() { $('mic').className = 'mic' + (on ? ' on' : ''); }
+  function start() {
+    if (!R) { status('This browser has no voice typing. Use the keyboard’s own 🎤 (Mac: press Fn twice; Windows: Win + H).', true); return; }
+    try { rec = new R(); } catch (e) { status('Voice typing could not start.', true); return; }
+    rec.lang = lang; rec.continuous = true; rec.interimResults = true;
+    rec.onresult = function (ev) {
+      var fin = '', tmp = '';
+      for (var i = ev.resultIndex; i < ev.results.length; i++) { var t = ev.results[i][0].transcript; if (ev.results[i].isFinal) fin += t; else tmp += t; }
+      if (fin) { var v = $('txt').value; $('txt').value = v + (v && !/\s$/.test(v) ? ' ' : '') + fin.trim(); }
+      $('heard').textContent = tmp ? '“' + tmp + '”' : '';
+    };
+    rec.onerror = function (ev) {
+      var c = ev.error;
+      if (c === 'not-allowed' || c === 'service-not-allowed') status('The microphone is blocked for this page. Click the 🔒 / 🎤 icon in the address bar ▸ Microphone ▸ Allow, then press 🎤. On a Mac also check System Settings ▸ Privacy & Security ▸ Microphone.', true);
+      else if (c === 'audio-capture') status('No microphone found.', true);
+      else if (c === 'no-speech') status('Did not hear anything – press 🎤 and speak.');
+      else if (c === 'network') status('Voice typing needs the internet.', true);
+      else if (c !== 'aborted') status('Stopped (' + c + ').', true);
+    };
+    rec.onend = function () { on = false; ui(); if (!$('st').className) status('Paused. Press 🎤 to speak more.'); };
+    try { rec.start(); on = true; ui(); status('Listening… speak now.'); } catch (e) { status('Press 🎤 to start.'); }
+  }
+  function stop() { if (rec) { try { rec.stop(); } catch (e) { } } on = false; ui(); }
+  function send(cancel) {
+    if (sent) return; sent = true; stop();
+    var msg = cancel ? { tm: 'dictation-cancel' } : { tm: 'dictation', text: $('txt').value, lang: lang };
+    try { if (window.opener) window.opener.postMessage(msg, '*'); } catch (e) { }
+    setTimeout(function () { window.close(); }, 60); setTimeout(function () { window.close(); }, 400);
+  }
+  $('mic').onclick = function () { if (on) stop(); else start(); };
+  $('ins').onclick = function () { send(false); };
+  $('cl').onclick = function () { send(true); };
+  function comboOf(e) {
+    if (!(e.ctrlKey || e.altKey || e.metaKey)) return e.key && e.key.length === 1 ? e.key.toUpperCase() : '';
+    var k = /^Key[A-Z]$/.test(e.code) ? e.code.slice(3) : /^Digit\d$/.test(e.code) ? e.code.slice(5) : e.code === 'Space' ? 'Space' : (e.key && e.key.length === 1 ? e.key.toUpperCase() : '');
+    return k ? (e.ctrlKey ? 'Ctrl+' : '') + (e.altKey ? 'Alt+' : '') + (e.shiftKey ? 'Shift+' : '') + (e.metaKey ? 'Cmd+' : '') + k : '';
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { e.preventDefault(); send(true); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); send(false); return; }
+    if (key && (e.ctrlKey || e.altKey || e.metaKey) && comboOf(e) === key) { e.preventDefault(); send(false); }
+  });
+  window.addEventListener('message', function (e) { if (e.data && e.data.tm === 'finish') send(false); });
+  try { if (window.opener) window.opener.postMessage({ tm: 'mic-ready' }, '*'); } catch (e) { }   // 2.2.0: tells the app the voice page is there
+  window.addEventListener('beforeunload', function () { if (!sent) { try { if (window.opener) window.opener.postMessage({ tm: 'dictation-cancel' }, '*'); } catch (e) { } } });
+  start();
+})();
+</script>
+</body>
+</html>

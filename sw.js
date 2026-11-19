@@ -1,5 +1,5 @@
 // Keeps the app shell (this page and its icons) available, so the app opens even on a weak connection.
-var CACHE = 'srcersp-shell-v8';
+var CACHE = 'srcersp-shell-v12';
 var SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'favicon.png'];
 self.addEventListener('install', function (e) { e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); })); self.skipWaiting(); });
 self.addEventListener('activate', function (e) {
