@@ -85,7 +85,8 @@
       if (!ok) return offlineScreen();
       started = true; clearInterval(poll); load.className = ''; msg.textContent = 'Loading…';
       frame.onload = function () { setTimeout(function () { load.style.display = 'none'; }, 300); };
-      frame.src = APP_URL;
+      var bust = ''; try { bust = sessionStorage.getItem('tm_bust') || ''; sessionStorage.removeItem('tm_bust'); } catch (e) {}
+      frame.src = bust ? APP_URL + (APP_URL.indexOf('?') < 0 ? '?' : '&') + 'v=' + encodeURIComponent(bust) + '&t=' + Date.now() : APP_URL;
       setTimeout(function () { if (load.style.display !== 'none') msg.textContent = 'Still loading… please check your internet connection.'; }, 12000);
     });
   }
@@ -105,6 +106,7 @@
       var out = {}; Object.keys(KEYS).forEach(function (k) { try { var v = localStorage.getItem(k); if (v !== null) out[k] = v; } catch (e) {} });
       try { ev.source.postMessage({ tm: 'store', data: out }, ev.origin); } catch (e) {}
     } else if (d.tm === 'reload') {
+      try { if (d.v) sessionStorage.setItem('tm_bust', String(d.v).replace(/[^0-9.]/g, '').slice(0, 12)); } catch (e) {}   // 2.8.0: ask Google for a fresh copy
       location.reload();   // "Update now": load the new version here, without leaving this page
     } else if (d.tm === 'set' && KEYS[d.k]) {
       try { if (d.v === null || d.v === undefined) localStorage.removeItem(d.k); else localStorage.setItem(d.k, String(d.v)); } catch (e) {}
@@ -150,9 +152,10 @@
         if (!e.results[i].isFinal) continue; WK.fails = 0;
         var t = e.results[i][0].transcript;
         if (WK.test) wkTell({ tm: 'wake-hear', text: t });   // 🎙 Test in Settings: show what was heard (nothing kept)
-        if (WK.until && Date.now() < WK.until) { WK.until = 0; wkTell({ tm: 'wake-q', text: t }); continue; }
+        if (WK.until && Date.now() < WK.until) { WK.until = Date.now() + 2500; wkTell({ tm: 'wake-q', text: t }); continue; }   // 2.8.0: a question in two pieces – the next piece within 2.5 s goes too
         var rest = wkMatch(t); if (rest === null) continue;
-        if (rest.split(' ').filter(String).length < 2) WK.until = Date.now() + 10000;
+        if (rest.split(' ').filter(String).length < 2) WK.until = Date.now() + 30000;   // 2.8.0: 30 s for the question (was 10)
+        else WK.until = Date.now() + 2500;
         wkTell({ tm: 'wake-heard', rest: rest });
       }
     };
