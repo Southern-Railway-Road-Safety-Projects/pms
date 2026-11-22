@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>SR.CE.RSP – Project Management System</title>
+<title>Southern Railway Road Safety Projects – Sridhar's Project Management System</title>
 <meta name="description" content="Southern Railway · Chief Engineer · Road Safety Projects – Project Management System">
 <meta name="theme-color" content="#1f5fa8">
 <link rel="manifest" href="manifest.webmanifest">
@@ -18,17 +18,21 @@
   #app { position: fixed; top: env(safe-area-inset-top, 0); left: 0; right: 0; bottom: 0; width: 100%; height: calc(100% - env(safe-area-inset-top, 0px)); border: 0; background: #f4f6f9; }
   #load { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; padding: 20px; z-index: 2; background: #f4f6f9; }
   #load img { width: 96px; height: 96px; border-radius: 22px; margin-bottom: 8px; }
-  #load .a { font-weight: 700; font-size: 17px; } #load .b { font-size: 14px; color: #667085; }
+  #load .a { font-weight: 700; font-size: 17px; } #load .b { font-size: 14.5px; font-weight: 700; color: #b8860b; }
   #load .c { font-size: 13px; color: #667085; margin-top: 14px; }
+  #load .r { display: none; margin-top: 14px; font-size: 15px; padding: 9px 18px; border-radius: 10px; border: 1px solid #1f5fa8; background: #1f5fa8; color: #fff; cursor: pointer; }
+  #load.offl .c { color: #24425f; font-size: 14.5px; max-width: 360px; line-height: 1.45; }
+  #load.offl .r { display: inline-block; }
   #off { display: none; position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); background: #b42318; color: #fff; padding: 8px 14px; border-radius: 10px; font-size: 14px; z-index: 3; }
 </style>
 </head>
 <body>
 <div id="load">
   <img src="icon-192.png" alt="">
-  <div class="a">Southern Railway<br>Road Safety Projects</div>
-  <div class="b">Project Management System</div>
+  <div class="a" id="t12">Southern Railway<br>Road Safety Projects</div>
+  <div class="b" id="t3">Sridhar&#39;s Project Management System</div>
   <div class="c" id="msg">Loading…</div>
+  <button class="r" id="retry" type="button">Try again now</button>
 </div>
 <iframe id="app" title="SR.CE.RSP Project Management System" allow="clipboard-write; microphone"></iframe>
 <div id="off">No internet connection</div>
@@ -38,16 +42,50 @@
   // ▲▲▲
 
   var frame = document.getElementById('app'), load = document.getElementById('load'), msg = document.getElementById('msg');
+  var started = false, poll = 0;
+  /* the three title lines as the super admin set them (the app keeps them here each time it opens) */
+  (function () {
+    function esc(x) { return String(x).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+    try {
+      var t = JSON.parse(localStorage.getItem('tm_title') || '{}') || {}, t3 = localStorage.getItem('tm_appname');
+      if (t.t1 || t.t2) document.getElementById('t12').innerHTML = esc(t.t1 || '') + (t.t1 && t.t2 ? '<br>' : '') + esc(t.t2 || '');
+      if (t3) document.getElementById('t3').textContent = t3;
+      if (t.t1 || t3) document.title = [t.t1, t.t2].filter(Boolean).join(' ') + (t3 ? ' – ' + t3 : '');
+    } catch (e) { }
+  })();
+  /* 2.7.2: the app's Google page is loaded only when Google can be reached – never Chrome's “server IP address could not
+     be found” page. Without internet this page says so and opens the app by itself as soon as the internet works again. */
+  function reachable() {
+    if (!navigator.onLine) return Promise.resolve(false);
+    if (!/^https:/.test(APP_URL)) return Promise.resolve(true);
+    var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { if (ctl) ctl.abort(); }, 8000);
+    return fetch('https://script.google.com/favicon.ico?_=' + Date.now(), { mode: 'no-cors', cache: 'no-store', signal: ctl ? ctl.signal : undefined })
+      .then(function () { clearTimeout(t); return true; }, function () { clearTimeout(t); return false; });
+  }
+  function offlineScreen() {
+    load.style.display = 'flex'; load.className = 'offl';
+    msg.innerHTML = 'No internet just now.<br>The app opens by itself as soon as the internet is back.<br><span style="color:#667085;font-size:13px">Anything you saved on this phone or computer while offline is kept and will be sent.</span>';
+    clearInterval(poll); poll = setInterval(tryStart, 10000);
+  }
+  function tryStart() {
+    if (started) return;
+    msg.textContent = 'Connecting…';
+    reachable().then(function (ok) {
+      if (started) return;
+      if (!ok) return offlineScreen();
+      started = true; clearInterval(poll); load.className = ''; msg.textContent = 'Loading…';
+      frame.onload = function () { setTimeout(function () { load.style.display = 'none'; }, 300); };
+      frame.src = APP_URL;
+      setTimeout(function () { if (load.style.display !== 'none') msg.textContent = 'Still loading… please check your internet connection.'; }, 12000);
+    });
+  }
+  document.getElementById('retry').onclick = tryStart;
   if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/.test(APP_URL) && !/^http:\/\/(localhost|127\.0\.0\.1)/.test(APP_URL)) {
     msg.innerHTML = 'Setup not finished: the app link has not been added to index.html yet.';
-  } else {
-    frame.onload = function () { setTimeout(function () { load.style.display = 'none'; }, 300); };
-    frame.src = APP_URL;
-    setTimeout(function () { msg.textContent = 'Still loading… please check your internet connection.'; }, 12000);
-  }
+  } else tryStart();
   // Keeps the sign-in (and a few preferences) on THIS page, so browsers that forget what Google's inner frame stores
   // (Safari especially) still keep people signed in for 30 days. Only the app itself (Google's frames) may ask.
-  var KEYS = { tm_token: 1, tm_login: 1, tm_appname: 1, tm_sched_p: 1, tm_sort: 1, tm_rsort: 1, tm_folds: 1, tm_tcols: 1, tm_cache: 1, tm_fin_unit: 1, tm_paper: 1, tm_dens: 1, tm_title: 1, tm_side: 1, tm_viewstat: 1, tm_newused: 1 };
+  var KEYS = { tm_token: 1, tm_login: 1, tm_appname: 1, tm_sched_p: 1, tm_sort: 1, tm_rsort: 1, tm_folds: 1, tm_tcols: 1, tm_cache: 1, tm_fin_unit: 1, tm_paper: 1, tm_dens: 1, tm_title: 1, tm_side: 1, tm_viewstat: 1, tm_newused: 1, tm_menuuse: 1 };
   function okOrigin(o) { return /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.googleusercontent\.com$/.test(o) || o === 'https://script.google.com'; }
   function fromOurApp(src) { for (var w = src, i = 0; w && i < 6; i++) { if (w === frame.contentWindow) return true; if (w === w.parent) break; w = w.parent; } return false; }
   window.addEventListener('message', function (ev) {
@@ -63,10 +101,12 @@
     }
   });
   function net() { document.getElementById('off').style.display = navigator.onLine ? 'none' : 'block'; }
-  window.addEventListener('online', function () { net(); if (load.style.display === 'none') frame.src = APP_URL; });
+  // back online: an app already open carries on by itself (it sends what was kept); it is NOT reloaded here, because a
+  // reload while the connection is still settling is what showed Chrome's “could not be found” page
+  window.addEventListener('online', function () { net(); if (!started) setTimeout(tryStart, 1500); });
   window.addEventListener('offline', net); net();
   // Coming back to this page from the browser's memory (e.g. the ✕ of an outside page): load the app afresh
-  window.addEventListener('pageshow', function (e) { if (e.persisted) location.reload(); });
+  window.addEventListener('pageshow', function (e) { if (e.persisted && navigator.onLine) location.reload(); });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
 </script>
 </body>
