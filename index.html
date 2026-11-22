@@ -53,6 +53,16 @@
       if (t.t1 || t3) document.title = [t.t1, t.t2].filter(Boolean).join(' ') + (t3 ? ' – ' + t3 : '');
     } catch (e) { }
   })();
+  /* 2.7.7: in the installed app's own window Chrome writes the app's name in front of the page title unless the title
+     already starts with it, so the name showed twice. There the title is the app's name alone, as in the manifest. */
+  (function () {
+    try {
+      var own = ['standalone', 'window-controls-overlay', 'minimal-ui', 'fullscreen'].some(function (m) { return window.matchMedia && matchMedia('(display-mode: ' + m + ')').matches; });
+      if (!own) return;
+      document.title = 'SR.CE.RSP – Project Management System';
+      fetch('manifest.webmanifest', { cache: 'no-cache' }).then(function (r) { return r.json(); }).then(function (m) { if (m && m.name) document.title = String(m.name); }).catch(function () { });
+    } catch (e) { }
+  })();
   /* 2.7.2: the app's Google page is loaded only when Google can be reached – never Chrome's “server IP address could not
      be found” page. Without internet this page says so and opens the app by itself as soon as the internet works again. */
   function reachable() {
