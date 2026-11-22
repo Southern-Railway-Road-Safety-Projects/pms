@@ -108,8 +108,53 @@
       location.reload();   // "Update now": load the new version here, without leaving this page
     } else if (d.tm === 'set' && KEYS[d.k]) {
       try { if (d.v === null || d.v === undefined) localStorage.removeItem(d.k); else localStorage.setItem(d.k, String(d.v)); } catch (e) {}
+    } else if (d.tm === 'wake') {
+      WK.src = ev.source; WK.org = ev.origin; WK.names = (d.names || []).map(String).slice(0, 3); WK.lang = String(d.lang || 'en-IN').slice(0, 10);
+      if (d.on) { WK.on = true; WK.blocked = false; if (WK.rec && WK.rec.lang !== WK.lang) { try { WK.rec.abort(); } catch (e) {} } else wkStart(); } else wkStop();
     }
   });
+  /* 2.7.8 “Hi San”: the app asks this page to listen (Google's frame may not use the microphone). Only the app's own
+     frame can turn it on; the words heard go back only to that frame, and only when they start with hi / hey / hello +
+     the assistant's name, or are the question that follows within 10 seconds. Nothing is kept here. */
+  var WK = { R: window.SpeechRecognition || window.webkitSpeechRecognition, rec: null, on: false, blocked: false, names: [], lang: 'en-IN', src: null, org: '', until: 0, fails: 0 };
+  function wkTell(m) { try { if (WK.src) WK.src.postMessage(m, WK.org); } catch (e) {} }
+  function wkSkel(w) { w = String(w || '').toLowerCase().replace(/[^a-z]/g, ''); if (!w) return ''; return (w.charAt(0) + w.slice(1).replace(/[aeiouyh]/g, '')).replace(/(.)\1+/g, '$1'); }
+  function wkDist(a, b) { if (Math.abs(a.length - b.length) > 2) return 9; var p = [], i, j; for (j = 0; j <= b.length; j++) p[j] = j; for (i = 1; i <= a.length; i++) { var c = [i]; for (j = 1; j <= b.length; j++) c[j] = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); p = c; } return p[b.length]; }
+  function wkMatch(text) {
+    var t = String(text || '').toLowerCase().replace(/[^a-z0-9\s']/g, ' ').replace(/\s+/g, ' ').trim(), w = t.split(' ');
+    var keys = WK.names.map(function (n) { n = n.toLowerCase().replace(/[^a-z]/g, ''); return { n: n, k: wkSkel(n) }; }).filter(function (x) { return x.n; });
+    for (var i = 0; i < w.length - 1; i++) {
+      if (!/^(hi|hii|hai|hey|hay|hello|helo|ok|okay)$/.test(w[i])) continue;
+      var cand = [w[i + 1], w[i + 1] + (w[i + 2] || '')];
+      for (var c = 0; c < cand.length; c++) { var x = cand[c];
+        if (keys.some(function (k) { return x === k.n || (wkSkel(x) === k.k && Math.abs(x.length - k.n.length) <= 2) || (k.n.length >= 4 && wkDist(x, k.n) <= 1); })) return w.slice(i + 2 + c).join(' ').trim(); }
+    }
+    return null;
+  }
+  function wkStart() {
+    if (!WK.on || WK.rec || WK.blocked || document.hidden) return;
+    if (!WK.R) { wkTell({ tm: 'wake-state', state: 'unsupported' }); return; }
+    var r; try { r = new WK.R(); } catch (e) { wkTell({ tm: 'wake-state', state: 'unsupported' }); return; }
+    r.continuous = true; r.interimResults = false; r.lang = WK.lang;
+    r.onresult = function (e) {
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        if (!e.results[i].isFinal) continue; WK.fails = 0;
+        var t = e.results[i][0].transcript;
+        if (WK.until && Date.now() < WK.until) { WK.until = 0; wkTell({ tm: 'wake-q', text: t }); continue; }
+        var rest = wkMatch(t); if (rest === null) continue;
+        if (rest.split(' ').filter(String).length < 2) WK.until = Date.now() + 10000;
+        wkTell({ tm: 'wake-heard', rest: rest });
+      }
+    };
+    r.onerror = function (e) {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { WK.blocked = true; wkTell({ tm: 'wake-state', state: 'blocked' }); }
+      else if (e.error !== 'no-speech' && e.error !== 'aborted') WK.fails++;
+    };
+    r.onend = function () { if (WK.rec !== r) return; WK.rec = null; if (WK.on && !WK.blocked) setTimeout(wkStart, Math.min(30000, 300 + WK.fails * 2000)); };
+    try { r.start(); WK.rec = r; wkTell({ tm: 'wake-state', state: 'listening' }); } catch (e) { wkTell({ tm: 'wake-state', state: 'error' }); }
+  }
+  function wkStop() { WK.on = false; WK.until = 0; var r = WK.rec; WK.rec = null; if (r) try { r.abort(); } catch (e) {} wkTell({ tm: 'wake-state', state: 'off' }); }
+  document.addEventListener('visibilitychange', function () { if (document.hidden) { var r = WK.rec; WK.rec = null; if (r) try { r.abort(); } catch (e) {} } else wkStart(); });
   function net() { document.getElementById('off').style.display = navigator.onLine ? 'none' : 'block'; }
   // back online: an app already open carries on by itself (it sends what was kept); it is NOT reloaded here, because a
   // reload while the connection is still settling is what showed Chrome's “could not be found” page
